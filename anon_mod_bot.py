@@ -308,9 +308,21 @@ async def anon_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if looks_profane(text):
         await msg.delete()
-        admins_text = f"⚠️ Profanity detected and message deleted.\nFrom: {user.full_name} ({user.id})\nText: {text}"
+        
+        # Create clickable user link
+        user_link = f"[{user.full_name}](tg://user?id={user.id})"
+        username_display = f"@{user.username}" if user.username else "N/A"
+        
+        # Notify all admins
+        admins_text = (
+            f"⚠️ Profanity detected and message deleted.\n"
+            f"From: {user_link}\n"
+            f"Username: {username_display}\n"
+            f"Text: {text}"
+        )
         for a in ADMIN_IDS:
-            await context.bot.send_message(a, admins_text)
+            await context.bot.send_message(a, admins_text, parse_mode="Markdown")
+        
         await context.bot.send_message(GROUP_ID, "🧹 Message removed by moderation.")
         return
 
@@ -326,6 +338,7 @@ async def anon_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_to_message_id=reply_to_id,
         reply_markup=build_delete_keyboard(user.id)
     )
+
 
 # Callback for delete button
 async def delete_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
