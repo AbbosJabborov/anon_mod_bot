@@ -81,6 +81,12 @@ def clear_mute(db: Dict[str, Any], uid: int):
 PENDING: Dict[str, dict] = {}
 
 # ====== UI BUILDERS ======
+def build_delete_keyboard(original_user_id: int):
+    """Create delete button with original sender's ID embedded."""
+    return InlineKeyboardMarkup(
+        [[InlineKeyboardButton("🗑 Delete", callback_data=f"delete:{original_user_id}")]]
+    )
+    
 def build_moderation_keyboard(key: str, profane: bool=False):
     buttons = [
         [InlineKeyboardButton("✅ Approve", callback_data=f"approve:{key}")],
@@ -188,14 +194,35 @@ async def anon_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Delete user's command message
     await msg.delete()
 
-    # Determine reply target
     reply_to_id = msg.reply_to_message.message_id if msg.reply_to_message else None
 
-    await context.bot.send_message(
+    # Send anonymous message with delete button
+    sent_msg = await context.bot.send_message(
         GROUP_ID,
         f"🕵️ Anonymous:\n{text}",
-        reply_to_message_id=reply_to_id
+        reply_to_message_id=reply_to_id,
+        reply_markup=build_delete_keyboard(user.id)
     )
+
+async def delete_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    if not q: return
+    await q.answer()
+    data = q.data or ""
+    if not data.startswith("delete:"): return
+
+    original_user_id = int(data.split(":", 1)[1])
+    user = q.from_user
+
+    # Only OP or admin can delete
+    if user.id != original_user_id and user.id not in ADMIN_IDS:
+        await q.answer("❌ You are not allowed to delete this message.", show_alert=True)
+        return
+
+    try:
+        await context.bot.delete_message(q.message.chat_id, q.message.message_id)
+    except Exception as e:
+        await q.answer(f"❌ Failed to delete: {e}", show_alert=True)
 
 
 # ====== ADMIN COMMANDS ======
@@ -261,6 +288,7 @@ def main():
     app.add_handler(MessageHandler(filters.ChatType.PRIVATE & ~filters.COMMAND, dm_handler))
     app.add_handler(CallbackQueryHandler(dm_callback))
     app.add_handler(CommandHandler("anon", anon_cmd))
+    app.add_handler(CallbackQueryHandler(delete_callback, pattern=r"^delete:"))
     app.add_handler(CommandHandler("mute", mute_cmd))
     app.add_handler(CommandHandler("unmute", unmute_cmd))
     app.add_handler(CommandHandler("modstats", modstats_cmd))
