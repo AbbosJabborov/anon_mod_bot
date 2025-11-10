@@ -136,12 +136,15 @@ async def dm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not q: return
     await q.answer()
     data = q.data or ""
-    if ":" not in data: return
+    if not (data.startswith("approve:") or data.startswith("reject:")):
+        return  # ignore other callback data
+
     action, key = data.split(":", 1)
     item = PENDING.get(key)
     if not item:
         await q.edit_message_text("⚠️ Request already processed or expired.")
         return
+
 
     if action == "approve":
         try:
@@ -286,9 +289,9 @@ def main():
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start_cmd))
     app.add_handler(MessageHandler(filters.ChatType.PRIVATE & ~filters.COMMAND, dm_handler))
-    app.add_handler(CallbackQueryHandler(dm_callback))
-    app.add_handler(CommandHandler("anon", anon_cmd))
+    app.add_handler(CallbackQueryHandler(dm_callback, pattern=r"^(approve|reject):"))
     app.add_handler(CallbackQueryHandler(delete_callback, pattern=r"^delete:"))
+    app.add_handler(CommandHandler("anon", anon_cmd))
     app.add_handler(CommandHandler("mute", mute_cmd))
     app.add_handler(CommandHandler("unmute", unmute_cmd))
     app.add_handler(CommandHandler("modstats", modstats_cmd))
