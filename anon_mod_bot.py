@@ -185,8 +185,18 @@ async def anon_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(GROUP_ID, "🧹 Message removed by moderation.")
         return
 
+    # Delete user's command message
     await msg.delete()
-    await context.bot.send_message(GROUP_ID, f"🕵️ Anonymous:\n{text}")
+
+    # Determine reply target
+    reply_to_id = msg.reply_to_message.message_id if msg.reply_to_message else None
+
+    await context.bot.send_message(
+        GROUP_ID,
+        f"🕵️ Anonymous:\n{text}",
+        reply_to_message_id=reply_to_id
+    )
+
 
 # ====== ADMIN COMMANDS ======
 async def mute_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
